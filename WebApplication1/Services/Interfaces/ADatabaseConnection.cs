@@ -11,6 +11,7 @@ namespace WebApplication1.Services.Interfaces
 
         public DbSet<Gym> Gyms => Set<Gym>();
         public DbSet<Trainer> Trainers => Set<Trainer>();
+        public DbSet<Client> Clients => Set<Client>();
 
         public ADatabaseConnection()
         {
