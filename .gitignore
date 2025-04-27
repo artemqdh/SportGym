@@ -1,0 +1,13 @@
+# Ignore build results
+bin/
+obj/
+
+# Ignore Visual Studio settings
+.vs/
+*.user
+
+# Ignore environment files (optional)
+*.env
+
+# Ignore HTTP request files (optional)
+*.http
