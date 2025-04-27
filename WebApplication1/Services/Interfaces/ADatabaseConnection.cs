@@ -10,6 +10,7 @@ namespace WebApplication1.Services.Interfaces
         protected string ConnectionString { get; private set; }
 
         public DbSet<Gym> Gyms => Set<Gym>();
+        public DbSet<Trainer> Trainers => Set<Trainer>();
 
         public ADatabaseConnection()
         {
