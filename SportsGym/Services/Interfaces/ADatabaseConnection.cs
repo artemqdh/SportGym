@@ -1,5 +1,6 @@
 ﻿using WebApplication1.Models.Entities;
 using Microsoft.EntityFrameworkCore;
+using SportsGym.Models.Entities;
 
 namespace WebApplication1.Services.Interfaces
 {
@@ -12,6 +13,7 @@ namespace WebApplication1.Services.Interfaces
         public DbSet<Gym> Gyms => Set<Gym>();
         public DbSet<Trainer> Trainers => Set<Trainer>();
         public DbSet<Client> Clients => Set<Client>();
+        public DbSet<TrainingSchedule> Trainings => Set<TrainingSchedule>();
 
         public ADatabaseConnection()
         {
