@@ -14,6 +14,7 @@ namespace WebApplication1.Services.Interfaces
         public DbSet<Trainer> Trainers => Set<Trainer>();
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<TrainingSchedule> Trainings => Set<TrainingSchedule>();
+        public DbSet<Admin> Admins => Set<Admin>();
 
         public ADatabaseConnection()
         {
