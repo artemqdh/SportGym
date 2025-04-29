@@ -1,4 +1,4 @@
-﻿namespace WebApplication1.Models.Entities
+﻿namespace SportsGym.Models.Entities
 {
     public class Gym
     {

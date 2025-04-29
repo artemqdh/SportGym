@@ -1,21 +1,23 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using WebApplication1.Models.Entities;
-using WebApplication1.Services;
+using SportsGym.Services;
 
-namespace WebApplication1.Controllers
+namespace SportsGym.Controllers
 {
     [ApiController]
     [Route("api")]
     public class SportCenterController : ControllerBase
     {
+        private readonly GymService _gymService;
+
+        public SportCenterController(GymService gymService)
+        {
+            _gymService = gymService;
+        }
+
         [HttpGet]
         public IEnumerable<dynamic> GetGyms()
         {
-            GymService initializeGymsInfo = new GymService();
-
-            List<Gym> gyms = initializeGymsInfo.GetGyms();
-
-            return gyms;
+            return _gymService.GetGyms();
         }
     }
 }

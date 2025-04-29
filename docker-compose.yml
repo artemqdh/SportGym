@@ -1,0 +1,33 @@
+services:
+  main:
+    container_name: SportsGym
+    build:
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    environment:
+      DATABASE_SERVER_NAME: ${DATABASE_SERVER_NAME}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DB_NAME: ${POSTGRES_DB}
+    ports:
+      - ${APPLICATION_PORT}:${CONTAINER_PORT}
+    depends_on:
+      - postgres
+    restart: always
+
+  postgres:
+    image: postgres:16
+    env_file: 
+      - .env
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${EXPORT_DATABASE_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
+    driver: local
