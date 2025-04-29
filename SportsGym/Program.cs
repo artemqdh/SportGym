@@ -1,25 +1,34 @@
-using WebApplication1.Services;
-
-SqliteConnection connection = new SqliteConnection();
+using Microsoft.EntityFrameworkCore;
+using SportsGym.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Load configuration from .env/appsettings.json
+builder.Configuration.AddEnvironmentVariables();
 
+builder.Services.AddDbContext<PostgresConnection>();
+
+// Add other services
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
+// Configure middleware pipeline
 app.UseCors(x => x
     .AllowAnyMethod()
     .AllowAnyHeader()
     .AllowCredentials()
     .SetIsOriginAllowed(origin => true));
 
-// Configure the HTTP request pipeline.
+// Auto-create DB when app starts 
+using (var scope = app.Services.CreateScope())
+{
+    scope.ServiceProvider.GetRequiredService<PostgresConnection>().Database.EnsureCreated();
+}
+
+// Configure HTTP pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -27,9 +36,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
 app.UseAuthorization();
-
 app.MapControllers();
 
 app.Run();

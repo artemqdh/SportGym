@@ -1,14 +1,33 @@
-﻿using WebApplication1.Models.Entities;
+﻿using SportsGym.Models.Entities;
 using Microsoft.EntityFrameworkCore;
-using SportsGym.Models.Entities;
 
-namespace WebApplication1.Services.Interfaces
+namespace SportsGym.Services.Interfaces
 {
     public abstract class ADatabaseConnection : DbContext
     {
+        public string ConnectionString { get; }
+
+        // Constructor for DI
+        protected ADatabaseConnection(DbContextOptions options) : base(options)
+        {
+            this.ConnectionString = this.ReturnConnectionString();
+        }
+
+        // Constructor for manual creation
+        protected ADatabaseConnection() : base()
+        {
+            this.ConnectionString = this.ReturnConnectionString();
+        }
+
         protected abstract string ReturnConnectionString();
 
-        protected string ConnectionString { get; private set; }
+        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        {
+            if (!optionsBuilder.IsConfigured)
+            {
+                optionsBuilder.UseNpgsql(this.ConnectionString);
+            }
+        }
 
         public DbSet<Gym> Gyms => Set<Gym>();
         public DbSet<Trainer> Trainers => Set<Trainer>();
@@ -16,10 +35,6 @@ namespace WebApplication1.Services.Interfaces
         public DbSet<TrainingSchedule> Trainings => Set<TrainingSchedule>();
         public DbSet<Admin> Admins => Set<Admin>();
 
-        public ADatabaseConnection()
-        {
-            this.ConnectionString = this.ReturnConnectionString();
-            this.Database.EnsureCreated();
-        }
+        
     }
 }

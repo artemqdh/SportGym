@@ -1,0 +1,23 @@
+# Ignore Git and version control
+.git/
+.github/
+
+# Ignore IDE/editor files
+.vs/
+SportsGym.sin
+
+# Ignore environment secrets
+.env
+
+# Ignore local development files
+docker-compose.override.yml  # (if you use it locally)
+
+# Ignore build/output directories (adjust if your project has them)
+bin/
+obj/
+*.suo
+*.user
+
+# Ignore logs and temporary files
+*.log
+tmp/
