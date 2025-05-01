@@ -6,9 +6,7 @@ services:
     env_file:
       - .env
     environment:
-      DATABASE_SERVER_NAME: ${DATABASE_SERVER_NAME}
-      DATABASE_PORT: ${DATABASE_PORT}
-      DB_NAME: ${POSTGRES_DB}
+      ASPNETCORE_ENVIRONMENT: Development
     ports:
       - ${APPLICATION_PORT}:${CONTAINER_PORT}
     depends_on:
