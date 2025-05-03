@@ -2,17 +2,25 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SportsGym.Services;
+using Microsoft.AspNetCore.Identity;
 using System.Text;
-using System.Net;
-using Npgsql;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Load configuration from .env/appsettings.json
-builder.Configuration.AddEnvironmentVariables();
+// Load configuration from appsettings.json, appsettings.Development.json, and environment variables
+builder.Configuration
+    .SetBasePath(builder.Environment.ContentRootPath)
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
 
+// Register DbContext using connection string from configuration
 builder.Services.AddDbContext<PostgresConnection>(options =>
-    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection"),
+        npgsql => npgsql.MigrationsAssembly(typeof(Program).Assembly.FullName)
+    )
+);
 
 // JWT Auth
 var jwtKey = builder.Configuration["JWT:SigningKey"] ?? "fdjsklfdjfnewcndfwenfdjcnwu";
@@ -39,6 +47,10 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
+builder.Services.AddIdentity<IdentityUser, IdentityRole>()
+    .AddEntityFrameworkStores<PostgresConnection>()
+    .AddDefaultTokenProviders();
+
 // Add other services
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -46,11 +58,11 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Auto-create database here
+// Auto-create database and apply migrations
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PostgresConnection>();
-    db.Database.EnsureCreated();
+    db.Database.Migrate();
 }
 
 // Configure middleware pipeline
@@ -63,7 +75,6 @@ app.UseCors(x => x
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Configure HTTP pipeline
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
