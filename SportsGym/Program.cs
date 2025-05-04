@@ -65,12 +65,12 @@ using (var scope = app.Services.CreateScope())
     db.Database.Migrate();
 }
 
-// Configure middleware pipeline
-app.UseCors(x => x
+app.UseCors(policy => policy
+    .WithOrigins("http://localhost:3001") ///< React port
     .AllowAnyMethod()
     .AllowAnyHeader()
     .AllowCredentials()
-    .SetIsOriginAllowed(origin => true));
+);
 
 app.UseAuthentication();
 app.UseAuthorization();
