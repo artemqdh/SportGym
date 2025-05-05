@@ -3,15 +3,17 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "axios": "^1.9.0",
+    "bootstrap": "^5.3.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "react-router-dom": "^7.5.3",
     "react-scripts": "5.0.1"
   },
   "scripts": {
-  "start": "set PORT=3001 && react-scripts start",
-  "build": "react-scripts build"
+    "start": "set PORT=3001 && react-scripts start",
+    "build": "react-scripts build"
   },
-
   "browserslist": {
     "production": [
       ">0.2%",
