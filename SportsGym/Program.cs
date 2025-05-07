@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using SportsGym.Services;
 using Microsoft.AspNetCore.Identity;
 using System.Text;
+using SportsGym.Models.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -73,6 +74,21 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PostgresConnection>();
     db.Database.Migrate();
+
+    var newAdmin = new Admin
+    {
+        Name = "Artem Admin",
+        BirthDate = "2005-07-17",
+        PhoneNumber = 0,
+        Email = "",
+        Gender = "Male",
+        Status = "SysAdmin",
+        Login = "artemadmin",
+        PasswordHash = BCrypt.Net.BCrypt.HashPassword("admin123") // hashed!
+    };
+
+    db.Admins.Add(newAdmin);
+    db.SaveChanges();
 }
 
 // 6) Apply CORS and Auth middleware

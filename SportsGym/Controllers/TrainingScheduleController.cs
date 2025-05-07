@@ -6,6 +6,7 @@ using SportsGym.Services;
 
 namespace SportsGym.Controllers
 {
+    [Authorize(Roles = "Admin,Trainer")]
     [Route("api/[controller]")]
     [ApiController]
     public class TrainingScheduleController : ControllerBase

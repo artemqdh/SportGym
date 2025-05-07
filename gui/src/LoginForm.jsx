@@ -26,11 +26,13 @@ export default function LoginForm() {
 
       const { data } = await axios.post(`${API_URL}/${endpoint}`, payload);
       
-      if (isLogin) {
-        // store JWT for subsequent calls
+      if (isLogin)
+      {
         localStorage.setItem('token', data.token);
-        setMessage('✅ Logged in!');
-      } else {
+        window.location.href = '/';  // navigates to Dashboard
+      }
+      else
+      {
         setMessage('✅ Registered! You can now log in.');
         setIsLogin(true);
       }
