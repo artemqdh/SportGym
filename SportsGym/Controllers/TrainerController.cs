@@ -60,5 +60,17 @@ namespace SportsGym.Controllers
 
             return NoContent();
         }
+
+        [HttpGet("by-gym/{gymId}")]
+        [AllowAnonymous]
+        public async Task<ActionResult<IEnumerable<Trainer>>> GetByGym(int gymId)
+        {
+            var trainers = await _db.Trainers
+                .Where(t => t.GymId == gymId)
+                .ToListAsync();
+
+            return trainers;
+        }
+
     }
 }

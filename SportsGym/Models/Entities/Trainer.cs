@@ -23,5 +23,7 @@
         public string Login { get; set; } = string.Empty;
 
         public string PasswordHash { get; set; } = string.Empty;
+
+        public int GymId { get; set; }
     }
 }

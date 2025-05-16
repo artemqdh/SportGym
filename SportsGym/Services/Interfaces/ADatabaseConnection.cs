@@ -34,7 +34,7 @@ namespace SportsGym.Services.Interfaces
         public DbSet<Client> Clients => Set<Client>();
         public DbSet<TrainingSchedule> Trainings => Set<TrainingSchedule>();
         public DbSet<Admin> Admins => Set<Admin>();
-
+        public DbSet<Booking> Bookings => Set<Booking>();
         
     }
 }
