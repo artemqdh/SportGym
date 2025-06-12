@@ -1,4 +1,13 @@
-﻿namespace SportsGym.Models.Dto
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace SportsGym.Models.Dto
 {
-    public record LoginDTO(string Login, string Password);
+    public class LoginDTO
+    {
+        [Required(ErrorMessage = "Login is required.")]
+        public string Login { get; init; }
+
+        [Required(ErrorMessage = "Password is required.")]
+        public string Password { get; init; }
+    }
 }

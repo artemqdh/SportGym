@@ -1,6 +1,6 @@
-﻿namespace SportsGym.Models.Entities
+﻿namespace SportsGym.Models.DTO
 {
-    public class TrainingSchedule
+    public class TrainingScheduleDTO
     {
         public int Id { get; set; }
 

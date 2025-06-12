@@ -3,9 +3,12 @@
     public class Booking
     {
         public int Id { get; set; }
-        public int GymId { get; set; }
+        public string GymName { get; set; } = string.Empty;
+        public string TrainerName { get; set; } = string.Empty;
+        public string ClientName { get; set; } = string.Empty;
+        public string Date { get; set; } = string.Empty;
+        public string StartTime { get; set; } = string.Empty;
+        public string EndTime { get; set; } = string.Empty;
         public int TrainerId { get; set; }
-        public DateTime StartTime { get; set; }
-        public DateTime EndTime { get; set; }
     }
 }
