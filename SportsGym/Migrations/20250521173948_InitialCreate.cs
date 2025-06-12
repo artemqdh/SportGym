@@ -38,8 +38,9 @@ namespace SportsGym.Migrations
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    GymId = table.Column<int>(type: "integer", nullable: false),
-                    TrainerId = table.Column<int>(type: "integer", nullable: false),
+                    GymName = table.Column<string>(type: "text", nullable: false),
+                    TrainerName = table.Column<string>(type: "text", nullable: false),
+                    ClientName = table.Column<string>(type: "text", nullable: false),
                     StartTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     EndTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -56,7 +57,7 @@ namespace SportsGym.Migrations
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "text", nullable: false),
                     BirthDate = table.Column<string>(type: "text", nullable: false),
-                    PhoneNumber = table.Column<int>(type: "integer", nullable: false),
+                    PhoneNumber = table.Column<string>(type: "text", nullable: false),
                     Email = table.Column<string>(type: "text", nullable: false),
                     Gender = table.Column<string>(type: "text", nullable: false),
                     Login = table.Column<string>(type: "text", nullable: false),
@@ -98,7 +99,7 @@ namespace SportsGym.Migrations
                     WorkingHours = table.Column<string>(type: "text", nullable: false),
                     Login = table.Column<string>(type: "text", nullable: false),
                     PasswordHash = table.Column<string>(type: "text", nullable: false),
-                    GymId = table.Column<int>(type: "integer", nullable: false)
+                    GymName = table.Column<string>(type: "text", nullable: false)
                 },
                 constraints: table =>
                 {

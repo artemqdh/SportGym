@@ -24,6 +24,6 @@
 
         public string PasswordHash { get; set; } = string.Empty;
 
-        public int GymId { get; set; }
+        public string GymName { get; set; } = string.Empty;
     }
 }

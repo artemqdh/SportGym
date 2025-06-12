@@ -2,13 +2,14 @@ services:
   main:
     container_name: SportsGym
     build:
+      context: .
       dockerfile: Dockerfile
     env_file:
       - .env
     environment:
       ASPNETCORE_ENVIRONMENT: Development
     ports:
-      - ${APPLICATION_PORT}:${CONTAINER_PORT}
+      - "${APPLICATION_PORT}:${CONTAINER_PORT}"
     depends_on:
       - postgres
     restart: always
@@ -25,6 +26,7 @@ services:
       - "${EXPORT_DATABASE_PORT}:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+
 
 volumes:
   postgres-data:

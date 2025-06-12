@@ -2,22 +2,25 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SportsGym.Services;
-using SportsGym.Models.Entities;
-using SportsGym.Services.Interfaces;    // <-- for ADatabaseConnection
+using SportsGym.Services.Interfaces;
 using System.Text;
-using DotNetEnv;  // only if you still need to load .env
+using DotNetEnv;
+using SportsGym.Models;
+using SportsGym.Models.Entities;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1) Load .env (if you need it) and configuration
-Env.Load();  // optional: only if you rely on DotNetEnv
+builder.Configuration.AddEnvironmentVariables();
+
+var key = Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"]);
+
+Env.Load();
 builder.Configuration
     .SetBasePath(builder.Environment.ContentRootPath)
     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
     .AddEnvironmentVariables();
 
-// 2) Register permissive CORS (dev only)
 builder.Services.AddCors(opts =>
 {
     opts.AddPolicy("AllowAll", p =>
@@ -27,7 +30,6 @@ builder.Services.AddCors(opts =>
     );
 });
 
-// 3) Register EF Core DbContext
 builder.Services.AddDbContext<PostgresConnection>(options =>
     options.UseNpgsql(
         builder.Configuration.GetConnectionString("DefaultConnection"),
@@ -35,42 +37,40 @@ builder.Services.AddDbContext<PostgresConnection>(options =>
     )
 );
 
-// 3b) Make ADatabaseConnection injectable
 builder.Services.AddScoped<ADatabaseConnection, PostgresConnection>();
 
-var jwtKey = Environment.GetEnvironmentVariable("JWT__SigningKey")
-    ?? throw new InvalidOperationException("Missing JWT:SigningKey");
-var jwtIssuer = Environment.GetEnvironmentVariable("JWT__Issuer") ?? "SportsGym";
+//var jwtKey = builder.Configuration["JWT:SigningKey"] ?? throw new InvalidOperationException("Missing JWT:SigningKey");
+//var jwtIssuer = builder.Configuration["JWT:Issuer"] ?? "SportsGym";
+//var jwtAudience = builder.Configuration["JWT:Audience"] ?? "SportsGym";
 
-builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidIssuer = jwtIssuer,
-            ValidateAudience = false,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
-        };
-    });
+//Console.WriteLine($"SIGNING KEY: {jwtKey}");
 
-builder.Services.AddAuthorization();
-
-// 5) MVC controllers & Swagger
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddAutoMapper(typeof(AppMappingProfile));
+
+//builder.Services.AddAuthentication(options =>
+//{
+//    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+//    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+//})
+//.AddJwtBearer(options =>
+//{
+//    options.TokenValidationParameters = new TokenValidationParameters
+//    {
+//        ValidateIssuer = true,
+//        ValidateAudience = true,
+//        ValidateLifetime = true,
+//        ValidateIssuerSigningKey = true,
+//        ValidIssuer = builder.Configuration["JWT:Issuer"],
+//        ValidAudience = builder.Configuration["JWT:Audience"],
+//        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JWT:SigningKey"]))
+//    };
+//});
 
 var app = builder.Build();
 
-// 6) Apply EF migrations & seed initial data
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<PostgresConnection>();
@@ -81,27 +81,27 @@ using (var scope = app.Services.CreateScope())
         db.Gyms.AddRange(
             new Gym
             {
-                Name = "Downtown Fitness Center",
-                Location = "Downtown",
-                AvailableTime = "Monday|08:00|20:00;Tuesday|08:00|20:00"
+                Name = "GymElite",
+                Location = "Moscow",
+                AvailableTime = "Monday-Sunday|10:00|23:00"
             },
             new Gym
             {
-                Name = "Eastside Gym",
-                Location = "Eastside",
-                AvailableTime = "Wednesday|09:00|18:00;Thursday|09:00|18:00"
+                Name = "McFit",
+                Location = "London",
+                AvailableTime = "Monday-Sunday|10:00|23:00"
             },
             new Gym
             {
-                Name = "Uptown Health Club",
-                Location = "Uptown",
-                AvailableTime = "Monday|10:00|18:00;Wednesday|09:00|17:00"
+                Name = "GymNation",
+                Location = "Dubai",
+                AvailableTime = "Monday-Sunday|10:00|23:00"
             },
             new Gym
             {
-                Name = "Eastside Yoga Studio",
-                Location = "Eastside",
-                AvailableTime = "Friday|09:00|17:00;Saturday|08:00|14:00"
+                Name = "FitnessLA",
+                Location = "Los Angeles",
+                AvailableTime = "Monday-Sunday|10:00|23:00"
             }
         );
         db.SaveChanges();
@@ -109,10 +109,10 @@ using (var scope = app.Services.CreateScope())
 
     if (!db.Trainers.Any())
     {
-        var downtown = db.Gyms.First(g => g.Name == "Downtown Fitness Center");
-        var eastside = db.Gyms.First(g => g.Name == "Eastside Gym");
-        var uptown = db.Gyms.First(g => g.Name == "Uptown Health Club");
-        var yoga = db.Gyms.First(g => g.Name == "Eastside Yoga Studio");
+        var gymElite = db.Gyms.First(g => g.Name == "GymElite");
+        var mcFit = db.Gyms.First(g => g.Name == "McFit");
+        var gymNation = db.Gyms.First(g => g.Name == "GymNation");
+        var fitnessLA = db.Gyms.First(g => g.Name == "FitnessLA");
 
         string Hash(string pw) => BCrypt.Net.BCrypt.HashPassword(pw);
 
@@ -126,10 +126,10 @@ using (var scope = app.Services.CreateScope())
                 Gender = "Male",
                 Status = "Active",
                 Specialization = "Weightlifting",
-                WorkingHours = "Monday|09:00|18:00;Tuesday|09:00|18:00",
+                WorkingHours = "Monday|10:00|18:00;Tuesday|10:00|18:00;Friday|10:00|18:00;",
                 Login = "alexj",
                 PasswordHash = Hash("trainer123"),
-                GymId = downtown.Id
+                GymName = gymElite.Name
             },
             new Trainer
             {
@@ -140,10 +140,10 @@ using (var scope = app.Services.CreateScope())
                 Gender = "Female",
                 Status = "Active",
                 Specialization = "Cardio",
-                WorkingHours = "Wednesday|08:00|16:00;Thursday|10:00|18:00",
+                WorkingHours = "Wednesday|10:00|16:00;Thursday|10:00|18:00;Saturday|10:00|19:00",
                 Login = "miap",
                 PasswordHash = Hash("trainer123"),
-                GymId = eastside.Id
+                GymName = mcFit.Name
             },
             new Trainer
             {
@@ -154,10 +154,10 @@ using (var scope = app.Services.CreateScope())
                 Gender = "Female",
                 Status = "Active",
                 Specialization = "Yoga",
-                WorkingHours = "Friday|09:00|17:00;Saturday|08:00|14:00",
+                WorkingHours = "Friday|10:00|17:00;Saturday|10:00|14:00;Sunday|10:00|19:00",
                 Login = "sofiam",
                 PasswordHash = Hash("trainer123"),
-                GymId = yoga.Id
+                GymName = gymNation.Name
             },
             new Trainer
             {
@@ -168,28 +168,32 @@ using (var scope = app.Services.CreateScope())
                 Gender = "Male",
                 Status = "Active",
                 Specialization = "CrossFit",
-                WorkingHours = "Monday|10:00|18:00;Wednesday|09:00|17:00",
+                WorkingHours = "Monday|10:00|18:00;Wednesday|10:00|17:00;Friday|10:00|20:00",
                 Login = "liamc",
                 PasswordHash = Hash("trainer123"),
-                GymId = uptown.Id
+                GymName = fitnessLA.Name
             }
         );
         db.SaveChanges();
     }
 }
 
-// 7) Enable CORS + Authentication + Authorization middleware
-app.UseCors("AllowAll");
-app.UseAuthentication();
-app.UseAuthorization();
+app.UseRouting();
 
-// 8) Swagger in Development
+app.UseCors("AllowAll");
+
+//app.UseAuthentication();
+//app.UseAuthorization();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-app.MapControllers();
+app.UseEndpoints(endpoints =>
+{
+    endpoints.MapControllers();
+});
+
 app.Run();

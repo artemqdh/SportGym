@@ -1,6 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using SportsGym.Models.DTO;
 using SportsGym.Models.Entities;
 using SportsGym.Services;
 
@@ -9,14 +11,21 @@ using SportsGym.Services;
 public class GymController : ControllerBase
 {
     private readonly PostgresConnection _db;
-    public GymController(PostgresConnection db) => _db = db;
+    private readonly IMapper _mapper;
+
+    public GymController(PostgresConnection db, IMapper mapper)
+    {
+        _db = db;
+        _mapper = mapper;
+    }
 
     // Allow anyone
     [HttpGet]
     [AllowAnonymous]
-    public async Task<List<Gym>> GetGyms()
-    { 
-        return await _db.Gyms.ToListAsync();
+    public async Task<List<GymDTO>> GetGyms()
+    {
+        var gyms = await _db.Gyms.ToListAsync();
+        return _mapper.Map<List<GymDTO>>(gyms);
     }
 
     [HttpGet("{id}")]
@@ -27,9 +36,7 @@ public class GymController : ControllerBase
         return gym is not null ? gym : NotFound();
     }
 
-    // Only Manager or Admin
     [HttpPost]
-    [Authorize(Roles = "Manager,Admin")]
     public async Task<ActionResult<Gym>> PostGym(Gym gym)
     {
         _db.Gyms.Add(gym);
@@ -38,7 +45,6 @@ public class GymController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Manager,Admin")]
     public async Task<IActionResult> PutGym(int id, Gym updatedGym)
     {
         if (id != updatedGym.Id) return BadRequest();
@@ -48,7 +54,6 @@ public class GymController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Manager,Admin")]
     public async Task<IActionResult> DeleteGym(int id)
     {
         var gym = await _db.Gyms.FindAsync(id);

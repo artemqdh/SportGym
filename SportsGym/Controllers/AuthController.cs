@@ -8,6 +8,10 @@ using Microsoft.IdentityModel.Tokens;
 using SportsGym.Models.Dto;
 using SportsGym.Models.Entities;
 using SportsGym.Services;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 
 namespace SportsGym.Controllers
 {
@@ -50,14 +54,16 @@ namespace SportsGym.Controllers
         }
 
         [HttpPost("login")]
-        public IActionResult Login([FromBody] LoginDTO dto)
+        public async Task<IActionResult> Login([FromBody] LoginDTO dto)
         {
-            var client = _db.Clients.FirstOrDefault(c => c.Login == dto.Login);
-            var trainer = _db.Trainers.FirstOrDefault(t => t.Login == dto.Login);
-            var admin = _db.Admins.FirstOrDefault(a => a.Login == dto.Login);
+            var client = await _db.Clients.FirstOrDefaultAsync(c => c.Login == dto.Login);
+            var trainer = await _db.Trainers.FirstOrDefaultAsync(t => t.Login == dto.Login);
+            var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Login == dto.Login);
 
             if (client == null && trainer == null && admin == null)
+            {
                 return Unauthorized("Invalid login or password.");
+            }
 
             string storedHash, role, userName;
             int userId;
@@ -85,26 +91,38 @@ namespace SportsGym.Controllers
             }
 
             if (!BCrypt.Net.BCrypt.Verify(dto.Password, storedHash))
-                return Unauthorized("Invalid login or password.");
-
-            var claims = new[]
             {
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
-                new Claim(ClaimTypes.Name,            userName),
-                new Claim(ClaimTypes.Role,            role)
+                return Unauthorized("Invalid login or password.");
+            }
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var key = Encoding.ASCII.GetBytes(_config["JWT:SigningKey"]);
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                Subject = new ClaimsIdentity(new Claim[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new Claim(ClaimTypes.Name, userName),
+                    new Claim(ClaimTypes.Role, role)
+                }),
+                Expires = DateTime.UtcNow.AddHours(1),
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
             };
+            var token = tokenHandler.CreateToken(tokenDescriptor);
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["JWT:SigningKey"]!));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+            var tokenString = tokenHandler.WriteToken(token);
 
-            var token = new JwtSecurityToken(
-                issuer: _config["JWT:Issuer"],
-                audience: _config["JWT:Issuer"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddHours(4),
-                signingCredentials: creds);
-
-            return Ok(new { token = new JwtSecurityTokenHandler().WriteToken(token) });
+            return Ok(new
+            {
+                data = new
+                {
+                    token = tokenString,
+                    userName,
+                    role
+                },
+                message = "Login successful."
+            });
         }
+
     }
 }

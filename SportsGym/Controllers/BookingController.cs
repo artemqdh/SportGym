@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using SportsGym.Models.Dto;
 using SportsGym.Models.DTO;
 using SportsGym.Models.Entities;
@@ -18,43 +19,70 @@ namespace SportsGym.Controllers
             _db = db;
         }
 
+        [HttpGet("{trainerName}")]
+        public async Task<IActionResult> GetTrainerBookings(string trainerName)
+        {
+            try
+            {
+                var bookings = await _db.Bookings
+                    .Where(b => b.TrainerName == trainerName)
+                    .Select(b => new BookingDTO
+                    {
+                        GymName = b.GymName,
+                        TrainerName = trainerName,
+                        ClientName = b.ClientName,
+                        Date = b.Date,
+                        StartTime = b.StartTime,
+                        EndTime = b.EndTime
+                    })
+                    .ToListAsync();
+
+                if (bookings == null || !bookings.Any())
+                {
+                    return NotFound("No bookings found.");
+                }
+
+                return Ok(bookings);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
+        }
+
+
         [HttpPost]
-        [Authorize(Roles = "Client")]
         public async Task<IActionResult> CreateBooking([FromBody] BookingDTO dto)
         {
-            // 1) Ensure trainer exists and belongs to this gym
-            var trainer = await _db.Trainers.FindAsync(dto.TrainerId);
-            if (trainer == null || trainer.GymId != dto.GymId)
-                return BadRequest("Trainer not available in this gym.");
-
-            // 2) Parse date+times into DateTime
-            if (!DateTime.TryParse($"{dto.Date}T{dto.StartTime}", out var start) ||
-                !DateTime.TryParse($"{dto.Date}T{dto.EndTime}", out var end))
+            try
             {
-                return BadRequest("Invalid date or time format.");
+                Trainer trainer = await _db.Trainers.FirstOrDefaultAsync(t => t.Name == dto.TrainerName && t.GymName == dto.GymName);
+
+                if (trainer == null)
+                {
+                    return BadRequest("Trainer not found in this gym.");
+                }
+
+                var booking = new Booking
+                {
+                    GymName = dto.GymName,
+                    TrainerName = trainer.Name,
+                    ClientName = dto.ClientName,
+                    Date = dto.Date,
+                    StartTime = dto.StartTime,
+                    EndTime = dto.EndTime
+                };
+
+                _db.Bookings.Add(booking);
+                await _db.SaveChangesAsync();
+
+                return Ok("Booking created successfully.");
             }
-
-            // 3) Optional: check for conflicting bookings
-            bool conflict = _db.Bookings.Any(b =>
-                b.TrainerId == dto.TrainerId &&
-                b.StartTime == start
-            );
-            if (conflict)
-                return Conflict("Trainer is already booked at that time.");
-
-            // 4) Create entity and save
-            var booking = new Booking
+            catch (Exception ex)
             {
-                GymId = dto.GymId,
-                TrainerId = dto.TrainerId,
-                StartTime = start,
-                EndTime = end
-            };
-
-            _db.Bookings.Add(booking);
-            await _db.SaveChangesAsync();
-
-            return Ok("Booking created successfully.");
+                // Log the error (optional)
+                return StatusCode(500, "Internal server error: " + ex.Message);
+            }
         }
     }
 }
