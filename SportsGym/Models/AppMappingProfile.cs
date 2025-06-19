@@ -14,6 +14,8 @@ namespace SportsGym.Models
             CreateMap<Trainer, TrainerDTO>();
             CreateMap<Client, ClientDTO>();
             CreateMap<Admin, AdminDTO>();
+            CreateMap<TrainingScheduleDTO, TrainingSchedule>();
+            CreateMap<TrainingSchedule, TrainingScheduleDTO>();
         }
     }
 }

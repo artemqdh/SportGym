@@ -1,9 +1,7 @@
 ﻿using AutoMapper;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SportsGym.Models.DTO;
-using SportsGym.Models.Entities;
-using SportsGym.Services;
+using SportsGym.Services.Interfaces;
 
 namespace SportsGym.Controllers
 {
@@ -11,27 +9,31 @@ namespace SportsGym.Controllers
     [Route("api/[controller]")]
     public class AdminController : ControllerBase
     {
-        private readonly PostgresConnection _db;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public AdminController(PostgresConnection db, IMapper mapper)
+        public AdminController(IUnitOfWork unitOfWork, IMapper mapper)
         {
-            _db = db;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
 
         [HttpGet]
-        public async Task<List<AdminDTO>> GetAdmins()
+        public async Task<ActionResult<List<AdminDTO>>> GetAdmins()
         {
-            var admins = await _db.Admins.ToListAsync();
-            return _mapper.Map<List<AdminDTO>>(admins);
+            var admins = await _unitOfWork.AdminRepository.GetAllAsync();
+
+            if (admins == null || !admins.Any())
+                return NoContent();
+
+            return Ok(_mapper.Map<List<AdminDTO>>(admins));
         }
 
         [HttpGet("by-name/{name}")]
         public async Task<ActionResult<AdminDTO>> GetAdminByName(string name)
         {
-            var admin = await _db.Admins
-                .FirstOrDefaultAsync(a => a.Name.ToLower() == name.ToLower());
+            var admin = await _unitOfWork.AdminRepository
+                .FindAsync(a => a.Name.ToLower() == name.ToLower());
 
             if (admin == null)
             {
@@ -44,13 +46,15 @@ namespace SportsGym.Controllers
         [HttpPut("by-name/{name}")]
         public async Task<IActionResult> PutAdminByName(string name, AdminDTO adminDTO)
         {
-            var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Name.ToLower() == name.ToLower());
+            var admin = await _unitOfWork.AdminRepository
+                .FindAsync(a => a.Name.ToLower() == name.ToLower());
 
             if (admin == null)
             {
                 return NotFound();
             }
 
+            // Обновляем поля
             admin.Name = adminDTO.Name;
             admin.PhoneNumber = adminDTO.PhoneNumber;
             admin.BirthDate = adminDTO.BirthDate;
@@ -60,11 +64,11 @@ namespace SportsGym.Controllers
 
             try
             {
-                await _db.SaveChangesAsync();
+                await _unitOfWork.CommitAsync();
             }
             catch
             {
-                if (!AdminExists(admin.Id))
+                if (!await AdminExists(admin.Id))
                 {
                     return NotFound();
                 }
@@ -76,9 +80,10 @@ namespace SportsGym.Controllers
 
             return NoContent();
         }
-        private bool AdminExists(int id)
+
+        private async Task<bool> AdminExists(int id)
         {
-            return _db.Admins.Any(e => e.Id == id);
+            return await _unitOfWork.AdminRepository.ExistsAsync(e => e.Id == id);
         }
     }
 }

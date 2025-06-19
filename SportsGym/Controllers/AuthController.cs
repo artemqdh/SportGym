@@ -2,16 +2,10 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using BCrypt.Net;
-using Microsoft.Extensions.Configuration;
 using Microsoft.IdentityModel.Tokens;
 using SportsGym.Models.Dto;
 using SportsGym.Models.Entities;
-using SportsGym.Services;
-using Microsoft.EntityFrameworkCore.Metadata.Internal;
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.EntityFrameworkCore;
+using SportsGym.Services.Interfaces;
 
 namespace SportsGym.Controllers
 {
@@ -19,27 +13,32 @@ namespace SportsGym.Controllers
     [Route("api/[controller]")]
     public class AuthController : ControllerBase
     {
-        private readonly PostgresConnection _db;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IConfiguration _config;
 
-        public AuthController(PostgresConnection db, IConfiguration config)
+        public AuthController(IUnitOfWork unitOfWork, IConfiguration config)
         {
-            _db = db;
+            _unitOfWork = unitOfWork;
             _config = config;
         }
 
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDTO dto)
         {
-            // 1) Check if login already exists across all roles
-            if (_db.Clients.Any(c => c.Login == dto.Login) ||
-                _db.Trainers.Any(t => t.Login == dto.Login) ||
-                _db.Admins.Any(a => a.Login == dto.Login))
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            bool loginExists = await _unitOfWork.ClientRepository.ExistsAsync(c => c.Login == dto.Login) ||
+                               await _unitOfWork.TrainerRepository.ExistsAsync(t => t.Login == dto.Login) ||
+                               await _unitOfWork.AdminRepository.ExistsAsync(a => a.Login == dto.Login);
+
+            if (loginExists)
             {
                 return BadRequest("Login already taken.");
             }
 
-            // 2) Create a Client by default (you can adjust role logic later)
             var client = new Client
             {
                 Name = dto.Name,
@@ -47,8 +46,8 @@ namespace SportsGym.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
             };
 
-            _db.Clients.Add(client);
-            await _db.SaveChangesAsync();
+            _unitOfWork.ClientRepository.Add(client);
+            await _unitOfWork.CommitAsync();
 
             return Ok("Registration successful");
         }
@@ -56,9 +55,14 @@ namespace SportsGym.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO dto)
         {
-            var client = await _db.Clients.FirstOrDefaultAsync(c => c.Login == dto.Login);
-            var trainer = await _db.Trainers.FirstOrDefaultAsync(t => t.Login == dto.Login);
-            var admin = await _db.Admins.FirstOrDefaultAsync(a => a.Login == dto.Login);
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
+
+            var client = await _unitOfWork.ClientRepository.FindAsync(c => c.Login == dto.Login);
+            var trainer = await _unitOfWork.TrainerRepository.FindAsync(t => t.Login == dto.Login);
+            var admin = await _unitOfWork.AdminRepository.FindAsync(a => a.Login == dto.Login);
 
             if (client == null && trainer == null && admin == null)
             {
@@ -123,6 +127,5 @@ namespace SportsGym.Controllers
                 message = "Login successful."
             });
         }
-
     }
 }

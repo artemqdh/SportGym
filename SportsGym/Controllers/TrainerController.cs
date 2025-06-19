@@ -4,8 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SportsGym.Models.DTO;
 using SportsGym.Models.Entities;
-using SportsGym.Services;
-using System.ComponentModel;
+using SportsGym.Services.Interfaces;
 
 namespace SportsGym.Controllers
 {
@@ -13,26 +12,26 @@ namespace SportsGym.Controllers
     [ApiController]
     public class TrainerController : ControllerBase
     {
-        private readonly PostgresConnection _db;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public TrainerController(PostgresConnection db, IMapper mapper)
+        public TrainerController(IUnitOfWork unitOfWork, IMapper mapper)
         {
-            _db = db;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
 
         [HttpGet]
-        public async Task<List<TrainerDTO>> GetTrainers() ///< Get all trainers
+        public async Task<List<TrainerDTO>> GetTrainers()
         {
-            var trainers = await _db.Trainers.ToListAsync();
+            var trainers = await _unitOfWork.TrainerRepository.GetAllAsync();
             return _mapper.Map<List<TrainerDTO>>(trainers);
         }
 
         [HttpGet("{id:int}")]
-        public async Task<ActionResult<Trainer>> GetTrainer(int id) ///< Get trainer by id
+        public async Task<ActionResult<Trainer>> GetTrainer(int id)
         {
-            Trainer trainer = await _db.Trainers.FindAsync(id);
+            var trainer = await _unitOfWork.TrainerRepository.FindByIdAsync(id);
             if (trainer == null)
             {
                 return NotFound();
@@ -42,9 +41,10 @@ namespace SportsGym.Controllers
         }
 
         [HttpGet("by-name/{name}")]
-        public async Task<ActionResult<Trainer>> GetTrainerByName(string name) ///< Get trainer by name
+        public async Task<ActionResult<Trainer>> GetTrainerByName(string name)
         {
-            Trainer trainer = await _db.Trainers.FirstOrDefaultAsync(t => t.Name.ToLower() == name.ToLower());
+            var trainers = await _unitOfWork.TrainerRepository.FindAllAsync(t => t.Name.ToLower() == name.ToLower());
+            var trainer = trainers.FirstOrDefault();
 
             if (trainer == null)
             {
@@ -55,7 +55,7 @@ namespace SportsGym.Controllers
         }
 
         [HttpPost]
-        public async Task<ActionResult<Trainer>> PostTrainer([FromBody] TrainerCreateDTO trainerDto) ///< Add new trainer
+        public async Task<ActionResult<Trainer>> PostTrainer([FromBody] TrainerCreateDTO trainerDto)
         {
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(trainerDto.Password);
 
@@ -74,43 +74,40 @@ namespace SportsGym.Controllers
                 PasswordHash = passwordHash
             };
 
-            _db.Trainers.Add(trainer);
-            await _db.SaveChangesAsync();
+            await _unitOfWork.TrainerRepository.AddAsync(trainer);
+            await _unitOfWork.CommitAsync();
 
             return CreatedAtAction(nameof(GetTrainer), new { id = trainer.Id }, trainer);
         }
 
-
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTrainer(int id) ///< Delete a trainer
+        public async Task<IActionResult> DeleteTrainer(int id)
         {
-            var trainer = await _db.Trainers.FindAsync(id);
+            var trainer = await _unitOfWork.TrainerRepository.FindByIdAsync(id);
             if (trainer == null)
             {
                 return NotFound();
             }
-            _db.Trainers.Remove(trainer);
-            await _db.SaveChangesAsync();
+
+            _unitOfWork.TrainerRepository.Remove(trainer);
+            await _unitOfWork.CommitAsync();
 
             return NoContent();
         }
 
-        [HttpGet("by-gym/{gymId}")]
+        [HttpGet("by-gym/{gymName}")]
         [AllowAnonymous]
         public async Task<ActionResult<IEnumerable<Trainer>>> GetByGym(string gymName)
         {
-            var trainers = await _db.Trainers
-                .Where(t => t.GymName == gymName)
-                .ToListAsync();
-
-            return trainers;
+            var trainers = await _unitOfWork.TrainerRepository.FindAllAsync(t => t.GymName == gymName);
+            return Ok(trainers.ToList());
         }
 
         [HttpPut("by-name/{name}")]
         public async Task<IActionResult> PutTrainerByName(string name, TrainerDTO trainerDTO)
         {
-            var trainer = await _db.Trainers
-                .FirstOrDefaultAsync(t => t.Name.ToLower() == name.ToLower());
+            var trainers = await _unitOfWork.TrainerRepository.FindAllAsync(t => t.Name.ToLower() == name.ToLower());
+            var trainer = trainers.FirstOrDefault();
 
             if (trainer == null)
             {
@@ -126,14 +123,20 @@ namespace SportsGym.Controllers
             trainer.Specialization = trainerDTO.Specialization;
             trainer.WorkingHours = trainerDTO.WorkingHours;
             trainer.GymName = trainerDTO.GymName;
+            trainer.Login = trainerDTO.Login;
+
+            trainer.PasswordHash = BCrypt.Net.BCrypt.HashPassword(trainerDTO.Password);
+
+            _unitOfWork.TrainerRepository.Update(trainer);
 
             try
             {
-                await _db.SaveChangesAsync();
+                await _unitOfWork.CommitAsync();
             }
             catch (DbUpdateConcurrencyException)
             {
-                if (!TrainerExists(trainer.Id))
+                var exists = (await _unitOfWork.TrainerRepository.FindByIdAsync(trainer.Id)) != null;
+                if (!exists)
                 {
                     return NotFound();
                 }
@@ -146,9 +149,46 @@ namespace SportsGym.Controllers
             return NoContent();
         }
 
-        private bool TrainerExists(int id)
+        [HttpPut("by-name/trainer/{name}")]
+        public async Task<IActionResult> PutTrainerByNameTrainer(string name, TrainerDTO trainerDTO)
         {
-            return _db.Trainers.Any(e => e.Id == id);
+            var trainers = await _unitOfWork.TrainerRepository.FindAllAsync(t => t.Name.ToLower() == name.ToLower());
+            var trainer = trainers.FirstOrDefault();
+
+            if (trainer == null)
+            {
+                return NotFound();
+            }
+
+            trainer.Name = trainerDTO.Name;
+            trainer.PhoneNumber = trainerDTO.PhoneNumber;
+            trainer.BirthDate = trainerDTO.BirthDate;
+            trainer.Email = trainerDTO.Email;
+            trainer.Gender = trainerDTO.Gender;
+            trainer.Login = trainerDTO.Login;
+
+            trainer.PasswordHash = BCrypt.Net.BCrypt.HashPassword(trainerDTO.Password);
+
+            _unitOfWork.TrainerRepository.Update(trainer);
+
+            try
+            {
+                await _unitOfWork.CommitAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                var exists = (await _unitOfWork.TrainerRepository.FindByIdAsync(trainer.Id)) != null;
+                if (!exists)
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
+
+            return NoContent();
         }
     }
 }

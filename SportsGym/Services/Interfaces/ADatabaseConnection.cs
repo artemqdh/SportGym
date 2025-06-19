@@ -29,12 +29,27 @@ namespace SportsGym.Services.Interfaces
             }
         }
 
-        public DbSet<Gym> Gyms => Set<Gym>();
-        public DbSet<Trainer> Trainers => Set<Trainer>();
-        public DbSet<Client> Clients => Set<Client>();
-        public DbSet<TrainingSchedule> Trainings => Set<TrainingSchedule>();
-        public DbSet<Admin> Admins => Set<Admin>();
-        public DbSet<Booking> Bookings => Set<Booking>();
-        
+        public DbSet<Gym> Gyms { get; set; }
+        public DbSet<Trainer> Trainers { get; set; }
+        public DbSet<Client> Clients { get; set; }
+        public DbSet<TrainingSchedule> Trainings { get; set; }
+        public DbSet<Admin> Admins { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+
+
+        public void BeginTransaction()
+        {
+            Database.BeginTransaction();
+        }
+
+        public void CommitTransaction()
+        {
+            Database.CommitTransaction();
+        }
+
+        public void RollbackTransaction()
+        {
+            Database.RollbackTransaction();
+        }
     }
 }
