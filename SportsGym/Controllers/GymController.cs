@@ -4,27 +4,26 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SportsGym.Models.DTO;
 using SportsGym.Models.Entities;
-using SportsGym.Services;
+using SportsGym.Services.Interfaces;
 
 [Route("api/[controller]")]
 [ApiController]
 public class GymController : ControllerBase
 {
-    private readonly PostgresConnection _db;
+    private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
-    public GymController(PostgresConnection db, IMapper mapper)
+    public GymController(IUnitOfWork unitOfWork, IMapper mapper)
     {
-        _db = db;
+        _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
 
-    // Allow anyone
     [HttpGet]
     [AllowAnonymous]
     public async Task<List<GymDTO>> GetGyms()
     {
-        var gyms = await _db.Gyms.ToListAsync();
+        var gyms = await _unitOfWork.GymRepository.GetAllAsync();
         return _mapper.Map<List<GymDTO>>(gyms);
     }
 
@@ -32,15 +31,16 @@ public class GymController : ControllerBase
     [AllowAnonymous]
     public async Task<ActionResult<Gym>> GetGym(int id)
     {
-        var gym = await _db.Gyms.FindAsync(id);
+        var gym = await _unitOfWork.GymRepository.FindByIdAsync(id);
         return gym is not null ? gym : NotFound();
     }
 
     [HttpPost]
     public async Task<ActionResult<Gym>> PostGym(Gym gym)
     {
-        _db.Gyms.Add(gym);
-        await _db.SaveChangesAsync();
+        await _unitOfWork.GymRepository.AddAsync(gym);
+        await _unitOfWork.CommitAsync();
+
         return CreatedAtAction(nameof(GetGym), new { id = gym.Id }, gym);
     }
 
@@ -48,18 +48,33 @@ public class GymController : ControllerBase
     public async Task<IActionResult> PutGym(int id, Gym updatedGym)
     {
         if (id != updatedGym.Id) return BadRequest();
-        _db.Entry(updatedGym).State = EntityState.Modified;
-        await _db.SaveChangesAsync();
+
+        _unitOfWork.GymRepository.Update(updatedGym);
+
+        try
+        {
+            await _unitOfWork.CommitAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (await _unitOfWork.GymRepository.FindByIdAsync(id) == null)
+                return NotFound();
+            else
+                throw;
+        }
+
         return NoContent();
     }
 
     [HttpDelete("{id}")]
     public async Task<IActionResult> DeleteGym(int id)
     {
-        var gym = await _db.Gyms.FindAsync(id);
+        var gym = await _unitOfWork.GymRepository.FindByIdAsync(id);
         if (gym == null) return NotFound();
-        _db.Gyms.Remove(gym);
-        await _db.SaveChangesAsync();
+
+        _unitOfWork.GymRepository.Remove(gym);
+        await _unitOfWork.CommitAsync();
+
         return NoContent();
     }
 }

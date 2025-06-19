@@ -1,22 +1,20 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using SportsGym.Models.Dto;
+﻿using Microsoft.AspNetCore.Mvc;
 using SportsGym.Models.DTO;
 using SportsGym.Models.Entities;
-using SportsGym.Services;
+using SportsGym.Services.Interfaces;
 
 namespace SportsGym.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
+    //[Authorize]
     public class BookingController : ControllerBase
     {
-        private readonly PostgresConnection _db;
+        private readonly IUnitOfWork _unitOfWork;
 
-        public BookingController(PostgresConnection db)
+        public BookingController(IUnitOfWork unitOfWork)
         {
-            _db = db;
+            _unitOfWork = unitOfWork;
         }
 
         [HttpGet("{trainerName}")]
@@ -24,25 +22,20 @@ namespace SportsGym.Controllers
         {
             try
             {
-                var bookings = await _db.Bookings
-                    .Where(b => b.TrainerName == trainerName)
-                    .Select(b => new BookingDTO
-                    {
-                        GymName = b.GymName,
-                        TrainerName = trainerName,
-                        ClientName = b.ClientName,
-                        Date = b.Date,
-                        StartTime = b.StartTime,
-                        EndTime = b.EndTime
-                    })
-                    .ToListAsync();
+                var bookings = await _unitOfWork.BookingRepository
+                    .FindAllAsync(b => b.TrainerName == trainerName);
 
-                if (bookings == null || !bookings.Any())
+                var bookingDtos = bookings.Select(b => new BookingDTO
                 {
-                    return NotFound("No bookings found.");
-                }
+                    GymName = b.GymName,
+                    TrainerName = b.TrainerName,
+                    ClientName = b.ClientName,
+                    Date = b.Date,
+                    StartTime = b.StartTime,
+                    EndTime = b.EndTime
+                }).ToList();
 
-                return Ok(bookings);
+                return Ok(bookingDtos);
             }
             catch (Exception ex)
             {
@@ -50,13 +43,16 @@ namespace SportsGym.Controllers
             }
         }
 
-
         [HttpPost]
         public async Task<IActionResult> CreateBooking([FromBody] BookingDTO dto)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
             try
             {
-                Trainer trainer = await _db.Trainers.FirstOrDefaultAsync(t => t.Name == dto.TrainerName && t.GymName == dto.GymName);
+                var trainer = await _unitOfWork.TrainerRepository
+                    .FirstOrDefaultAsync(t => t.Name == dto.TrainerName && t.GymName == dto.GymName);
 
                 if (trainer == null)
                 {
@@ -70,17 +66,17 @@ namespace SportsGym.Controllers
                     ClientName = dto.ClientName,
                     Date = dto.Date,
                     StartTime = dto.StartTime,
-                    EndTime = dto.EndTime
+                    EndTime = dto.EndTime,
+                    TrainerId = dto.TrainerId
                 };
 
-                _db.Bookings.Add(booking);
-                await _db.SaveChangesAsync();
+                _unitOfWork.BookingRepository.Add(booking);
+                await _unitOfWork.CommitAsync();
 
                 return Ok("Booking created successfully.");
             }
             catch (Exception ex)
             {
-                // Log the error (optional)
                 return StatusCode(500, "Internal server error: " + ex.Message);
             }
         }

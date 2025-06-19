@@ -1,11 +1,8 @@
 ﻿using AutoMapper;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using SportsGym.Models.DTO;
 using SportsGym.Models.Entities;
-using SportsGym.Services;
-using System.Security.Claims;
+using SportsGym.Services.Interfaces;
 
 namespace SportsGym.Controllers
 {
@@ -13,38 +10,43 @@ namespace SportsGym.Controllers
     [ApiController]
     public class ClientController : ControllerBase
     {
-        private readonly PostgresConnection _db;
+        private readonly IUnitOfWork _unitOfWork;
         private readonly IMapper _mapper;
 
-        public ClientController(PostgresConnection db, IMapper mapper)
+        public ClientController(IUnitOfWork unitOfWork, IMapper mapper)
         {
-            _db = db;
+            _unitOfWork = unitOfWork;
             _mapper = mapper;
         }
 
         // GET: /api/Client
         [HttpGet]
-        public async Task<List<ClientDTO>> GetClients()
+        public async Task<ActionResult<List<ClientDTO>>> GetClients()
         {
-            var clients = await _db.Clients.ToListAsync();
-            return _mapper.Map<List<ClientDTO>>(clients);
+            var clients = await _unitOfWork.ClientRepository.GetAllAsync();
+            var dtos = _mapper.Map<List<ClientDTO>>(clients);
+            return Ok(dtos);
         }
 
         // GET: /api/Client/5
         [HttpGet("{id}")]
-        public async Task<ActionResult<Client>> GetClient(int id)
+        public async Task<ActionResult<ClientDTO>> GetClient(int id)
         {
-            var client = await _db.Clients.FindAsync(id);
+            var client = await _unitOfWork.ClientRepository.FindByIdAsync(id);
             if (client == null)
+            {
                 return NotFound();
+            }
 
-            return client;
+            return Ok(_mapper.Map<ClientDTO>(client));
         }
 
+        // POST: /api/Client
         [HttpPost]
-        public async Task<ActionResult<Client>> PostClient([FromBody] ClientCreateDTO dto)
+        public async Task<ActionResult<ClientDTO>> PostClient([FromBody] ClientCreateDTO dto)
         {
-            if (_db.Clients.Any(c => c.Login == dto.Login))
+            var existingClient = await _unitOfWork.ClientRepository.FindByLoginAsync(dto.Login);
+            if (existingClient != null)
             {
                 return BadRequest("Login already taken.");
             }
@@ -60,12 +62,14 @@ namespace SportsGym.Controllers
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password)
             };
 
-            _db.Clients.Add(client);
-            await _db.SaveChangesAsync();
+            await _unitOfWork.ClientRepository.AddAsync(client);
+            await _unitOfWork.CommitAsync();
 
-            return CreatedAtAction(nameof(GetClient), new { id = client.Id }, client);
+            var clientDto = _mapper.Map<ClientDTO>(client);
+            return CreatedAtAction(nameof(GetClient), new { id = client.Id }, clientDto);
         }
 
+        // PUT: /api/Client/5
         [HttpPut("{id}")]
         public async Task<IActionResult> PutClient(int id, [FromBody] ClientUpdateDTO dto)
         {
@@ -74,7 +78,7 @@ namespace SportsGym.Controllers
                 return BadRequest("ID in URL does not match ID in body");
             }
 
-            var client = await _db.Clients.FindAsync(id);
+            var client = await _unitOfWork.ClientRepository.FindByIdAsync(id);
             if (client == null)
             {
                 return NotFound();
@@ -85,39 +89,41 @@ namespace SportsGym.Controllers
             client.Email = dto.Email;
             client.PhoneNumber = dto.PhoneNumber;
             client.Gender = dto.Gender;
-            client.Login = dto.Login;
 
             if (!string.IsNullOrWhiteSpace(dto.Password))
             {
                 client.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
             }
 
-            await _db.SaveChangesAsync();
+            _unitOfWork.ClientRepository.Update(client);
+            await _unitOfWork.CommitAsync();
 
             return NoContent();
         }
 
-
+        // DELETE: /api/Client/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteClient(int id)
         {
-            var client = await _db.Clients.FindAsync(id);
+            var client = await _unitOfWork.ClientRepository.FindByIdAsync(id);
             if (client == null)
+            {
                 return NotFound();
+            }
 
-            _db.Clients.Remove(client);
-            await _db.SaveChangesAsync();
+            _unitOfWork.ClientRepository.Remove(client);
+            await _unitOfWork.CommitAsync();
 
             return NoContent();
         }
 
+        // GET: /api/Client/profile/by-name/{name}
         [HttpGet("profile/by-name/{name}")]
         public async Task<ActionResult<ClientDTO>> GetProfileByName(string name)
         {
             try
             {
-                var client = await _db.Clients.FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower());
-
+                var client = await _unitOfWork.ClientRepository.FindByNameAsync(name);
                 if (client == null)
                 {
                     return NotFound($"Client '{name}' not found");
@@ -131,6 +137,7 @@ namespace SportsGym.Controllers
             }
         }
 
+        // PUT: /api/Client/profile/by-name/{name}
         [HttpPut("profile/by-name/{name}")]
         public async Task<IActionResult> UpdateOwnProfile([FromBody] ClientDTO dto, string name)
         {
@@ -141,9 +148,7 @@ namespace SportsGym.Controllers
                     return BadRequest("Route name and body name must match");
                 }
 
-                var client = await _db.Clients
-                    .FirstOrDefaultAsync(c => c.Name.ToLower() == name.ToLower());
-
+                var client = await _unitOfWork.ClientRepository.FindByNameAsync(name);
                 if (client == null)
                 {
                     return NotFound($"Client '{name}' not found");
@@ -159,7 +164,8 @@ namespace SportsGym.Controllers
                     client.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
                 }
 
-                await _db.SaveChangesAsync();
+                _unitOfWork.ClientRepository.Update(client);
+                await _unitOfWork.CommitAsync();
 
                 return Ok(new
                 {

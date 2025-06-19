@@ -12,7 +12,7 @@
 
         public string Date { get; set; } = string.Empty; ///< yyyy-mm-dd
 
-        public string Time { get; set; } = string.Empty; // "Monday|8:00|10:00"
+        public string Time { get; set; } = string.Empty; // "8:00|10:00"
 
         public string GymName { get; set; } = string.Empty;
     }
